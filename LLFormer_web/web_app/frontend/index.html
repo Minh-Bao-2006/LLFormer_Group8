@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>LLFormer AI — Tăng sáng và phục hồi ảnh tối</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root {
+  --bg: #090B10;
+  --panel: #10141D;
+  --card: #151A26;
+  --card-hover: #1A2130;
+  --border: #232A3B;
+  --border-focus: #4F46E5;
+  --text-main: #F3F4F6;
+  --text-secondary: #9CA3AF;
+  --text-muted: #6B7280;
+  --primary: #4F46E5;
+  --primary-hover: #4338CA;
+  --accent-cyan: #06B6D4;
+  --accent-green: #10B981;
+  --accent-amber: #F59E0B;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --shadow-card: 0 4px 20px -2px rgba(0, 0, 0, 0.4);
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text-main);
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  line-height: 1.5;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+.ambient-glow {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 900px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(79, 70, 229, 0.12) 0%, rgba(6, 182, 212, 0.04) 40%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.app-container {
+  position: relative;
+  z-index: 1;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 1.5rem 4rem;
+}
+
+header {
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2.5rem;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+}
+
+.brand-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #4F46E5 0%, #06B6D4 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #FFFFFF;
+  box-shadow: 0 0 16px rgba(79, 70, 229, 0.35);
+}
+
+.brand-name {
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #FFFFFF;
+}
+
+.brand-tag {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent-cyan);
+  background: rgba(6, 182, 212, 0.1);
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(6, 182, 212, 0.2);
+}
+
+.hero {
+  text-align: center;
+  margin-bottom: 2.5rem;
+}
+
+.hero h1 {
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #FFFFFF;
+  margin-bottom: 0.5rem;
+}
+
+.hero h1 span {
+  background: linear-gradient(135deg, #A5B4FC 0%, #06B6D4 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Config Selector */
+.config-section {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  margin-bottom: 1.75rem;
+  box-shadow: var(--shadow-card);
+}
+
+.section-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+}
+
+.config-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 840px) {
+  .config-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 480px) {
+  .config-grid { grid-template-columns: 1fr; }
+}
+
+.config-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1.1rem 1.1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.config-card:hover {
+  background: var(--card-hover);
+  border-color: rgba(99, 102, 241, 0.4);
+}
+
+.config-card.active {
+  background: rgba(79, 70, 229, 0.08);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary), 0 4px 16px rgba(79, 70, 229, 0.2);
+}
+
+.config-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.config-card-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #FFFFFF;
+}
+
+.config-tag {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+}
+
+.config-card.active .config-tag {
+  background: rgba(79, 70, 229, 0.25);
+  color: #A5B4FC;
+}
+
+.config-card-desc {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+  line-height: 1.45;
+}
+
+.config-card-footer {
+  display: flex;
+  align-items: center;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 8px;
+}
+
+.config-feature-tag {
+  font-size: 0.72rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Upload Section */
+.upload-box {
+  background: var(--panel);
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-lg);
+  padding: 3rem 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  margin-bottom: 2rem;
+  position: relative;
+}
+
+.upload-box:hover, .upload-box.drag-over {
+  border-color: var(--primary);
+  background: rgba(79, 70, 229, 0.04);
+}
+
+.upload-icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 1rem;
+  color: #818CF8;
+}
+
+.upload-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #FFFFFF;
+  margin-bottom: 0.25rem;
+}
+
+.upload-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 1.25rem;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 0.65rem 1.4rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: #FFFFFF;
+}
+
+.btn-primary:hover {
+  background: var(--primary-hover);
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4);
+}
+
+.btn-secondary {
+  background: var(--card);
+  color: var(--text-main);
+  border-color: var(--border);
+}
+
+.btn-secondary:hover {
+  background: var(--card-hover);
+  border-color: #374151;
+}
+
+#file-input {
+  display: none;
+}
+
+/* Results Section */
+#results-section {
+  display: none;
+  animation: fadeIn 0.4s ease;
+}
+
+.results-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 1.5rem;
+}
+
+.results-heading {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #FFFFFF;
+}
+
+.action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Comparison Viewer */
+.viewer-container {
+  background: #000000;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-bottom: 1.75rem;
+  box-shadow: var(--shadow-card);
+}
+
+.viewer-inner {
+  position: relative;
+  width: 100%;
+  max-height: 68vh;
+  overflow: hidden;
+  cursor: col-resize;
+  user-select: none;
+}
+
+.viewer-inner img {
+  display: block;
+  width: 100%;
+  max-height: 68vh;
+  object-fit: contain;
+}
+
+#img-output {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  clip-path: inset(0 50% 0 0);
+  pointer-events: none;
+}
+
+.slider-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  background: #FFFFFF;
+  transform: translateX(-50%);
+  pointer-events: none;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.6);
+}
+
+.slider-handle-btn {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translate(-50%, -50%);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  color: #111827;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 800;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.badge-label {
+  position: absolute;
+  top: 14px;
+  padding: 4px 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #FFFFFF;
+  pointer-events: none;
+}
+
+.badge-label.left { left: 14px; }
+.badge-label.right { right: 14px; }
+
+.viewer-hint {
+  text-align: center;
+  padding: 8px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+}
+
+/* Metrics Dashboard */
+.metrics-section {
+  margin-bottom: 2rem;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 1.25rem;
+}
+
+@media (max-width: 768px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+.stat-item {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1.1rem 1.25rem;
+}
+
+.stat-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.stat-number {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: #FFFFFF;
+}
+
+.stat-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* Detail Panels */
+.detail-panels-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 840px) {
+  .detail-panels-grid { grid-template-columns: 1fr; }
+}
+
+.detail-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1.2rem;
+}
+
+.detail-panel-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.data-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 0;
+  font-size: 0.8rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.data-row:last-child {
+  border-bottom: none;
+}
+
+.data-key {
+  color: var(--text-secondary);
+}
+
+.data-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+/* Processing Overlay */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  background: rgba(9, 11, 16, 0.85);
+  backdrop-filter: blur(8px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.overlay.show { display: flex; }
+
+.spinner {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 3px solid rgba(79, 70, 229, 0.2);
+  border-top-color: var(--primary);
+  animation: spin 0.8s linear infinite;
+}
+
+.overlay-text {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #FFFFFF;
+}
+
+/* Toast */
+#toast {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  z-index: 600;
+  background: var(--card);
+  border: 1px solid var(--border);
+  padding: 10px 18px;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #FFFFFF;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  transform: translateY(16px);
+  transition: all 0.25s ease;
+  pointer-events: none;
+}
+
+#toast.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+</head>
+<body>
+<div class="ambient-glow"></div>
+
+<div class="app-container">
+  <header>
+    <a href="/" class="brand">
+      <div class="brand-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.636 5.636l2.122 2.122m8.484 8.484l2.122 2.122M5.636 18.364l2.122-2.122m8.484-8.484l2.122-2.122"/>
+        </svg>
+      </div>
+      <span class="brand-name">LLFormer AI</span>
+    </a>
+    <span class="brand-tag">AI Photo Enhancer</span>
+  </header>
+
+  <section class="hero">
+    <h1>Tăng sáng ảnh tối bằng <span>công nghệ AI</span></h1>
+  </section>
+
+  <!-- Chế độ tăng sáng -->
+  <section class="config-section">
+    <div class="section-label">Chọn chế độ tăng sáng</div>
+    <div class="config-grid" id="config-grid">
+      <!-- Config cards injected by JS -->
+    </div>
+  </section>
+
+  <!-- Upload Area -->
+  <section class="upload-section" id="upload-section">
+    <div class="upload-box" id="drop-area">
+      <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="17 8 12 3 7 8"/>
+        <line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+      <div class="upload-title">Kéo và thả ảnh tối vào đây</div>
+      <div class="upload-subtitle">Hỗ trợ PNG, JPEG, WEBP, BMP · Tối đa 25MB</div>
+      <button type="button" class="btn btn-primary" onclick="document.getElementById('file-input').click()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        Chọn ảnh từ máy tính
+      </button>
+      <input type="file" id="file-input" accept="image/*"/>
+    </div>
+  </section>
+
+  <!-- Results Section -->
+  <section id="results-section">
+    <div class="results-action-bar">
+      <h2 class="results-heading">Kết quả tăng sáng</h2>
+      <div class="action-buttons">
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('file-input').click()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+          Chọn ảnh khác từ máy tính
+        </button>
+        <button type="button" class="btn btn-primary" id="btn-download">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          Tải ảnh xuống
+        </button>
+      </div>
+    </div>
+
+    <!-- Viewer -->
+    <div class="viewer-container">
+      <div class="viewer-inner" id="viewer-box">
+        <img id="img-input" alt="Ảnh tối ban đầu"/>
+        <img id="img-output" alt="Ảnh sau xử lý"/>
+        <div class="slider-line" id="slider-bar">
+          <div class="slider-handle-btn">⟺</div>
+        </div>
+        <div class="badge-label left">Ảnh gốc</div>
+        <div class="badge-label right">Đã tăng sáng</div>
+      </div>
+      <div class="viewer-hint">Kéo thanh trượt để so sánh Trước / Sau</div>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="metrics-section">
+      <div class="section-label">Chỉ số cải thiện</div>
+      <div class="stats-grid">
+        <div class="stat-item">
+          <div class="stat-title">Thời gian xử lý</div>
+          <div class="stat-number" id="m-time" style="color:var(--accent-cyan)">—</div>
+          <div class="stat-meta" id="m-device">Thiết bị: CPU</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-title">Độ sáng sau xử lý</div>
+          <div class="stat-number" id="m-brightness" style="color:var(--accent-green)">—</div>
+          <div class="stat-meta" id="m-brightness-before">Trước: —</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-title">Mức tăng độ sáng</div>
+          <div class="stat-number" id="m-gain" style="color:var(--accent-amber)">—</div>
+          <div class="stat-meta" id="m-gain-sub">+0.0% độ sáng</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-title">Giảm vùng thiếu sáng (&lt;15%)</div>
+          <div class="stat-number" id="m-dark-reduction" style="color:var(--accent-green)">—</div>
+          <div class="stat-meta" id="m-dark-sub">Từ — → —</div>
+        </div>
+      </div>
+
+      <!-- Detail Analysis -->
+      <div class="section-label">Phân tích chi tiết</div>
+      <div class="detail-panels-grid">
+        <div class="detail-panel">
+          <div class="detail-panel-title">Ảnh đầu vào</div>
+          <div class="data-row"><span class="data-key">Độ phân giải</span><span class="data-val" id="d-res">—</span></div>
+          <div class="data-row"><span class="data-key">Số Megapixel</span><span class="data-val" id="d-mp">—</span></div>
+          <div class="data-row"><span class="data-key">Đánh giá ánh sáng</span><span class="data-val" id="d-dark-level">—</span></div>
+          <div class="data-row"><span class="data-key">Độ sáng trung bình</span><span class="data-val" id="d-lum-mean">—</span></div>
+          <div class="data-row"><span class="data-key">Mức độ nhiễu ảnh</span><span class="data-val" id="d-noise">—</span></div>
+        </div>
+
+        <div class="detail-panel">
+          <div class="detail-panel-title">Phân bố ánh sáng ban đầu</div>
+          <div class="data-row"><span class="data-key">Độ sáng vùng tối nhất (&lt; 15%)</span><span class="data-val" id="d-dark-lum">—</span></div>
+          <div class="data-row"><span class="data-key">Tỷ lệ diện tích thiếu sáng</span><span class="data-val" id="d-dark-area" style="color:var(--accent-amber)">—</span></div>
+          <div class="data-row"><span class="data-key">Độ sáng vùng trung bình</span><span class="data-val" id="d-low-lum">—</span></div>
+          <div class="data-row"><span class="data-key">Mức sáng thấp nhất / Cao nhất</span><span class="data-val" id="d-min-max-lum">—</span></div>
+          <div class="data-row"><span class="data-key">Độ tương phản chi tiết</span><span class="data-val" id="d-contrast-iqr">—</span></div>
+        </div>
+
+        <div class="detail-panel">
+          <div class="detail-panel-title">Hiệu năng & Khôi phục</div>
+          <div class="data-row"><span class="data-key">Tương phản Trước / Sau</span><span class="data-val" id="d-contrast-comp">—</span></div>
+          <div class="data-row"><span class="data-key">Cân bằng màu R/G/B</span><span class="data-val" id="d-rgb-shift">—</span></div>
+          <div class="data-row"><span class="data-key">Tốc độ xử lý</span><span class="data-val" id="d-throughput">—</span></div>
+          <div class="data-row"><span class="data-key">Chế độ đang dùng</span><span class="data-val" id="d-active-cfg">—</span></div>
+          <div class="data-row"><span class="data-key">Trạng thái xử lý</span><span class="data-val" style="color:var(--accent-green)">Hoàn tất</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- Loading Overlay -->
+<div class="overlay" id="loading-overlay">
+  <div class="spinner"></div>
+  <div class="overlay-text">Đang tăng sáng ảnh...</div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+let currentConfig = "B";
+let currentOutputDataUrl = null;
+let currentOutputFilename = "enhanced.png";
+let isDraggingSlider = false;
+
+async function init() {
+  await loadConfigs();
+  setupUploadEvents();
+  setupComparisonSlider();
+}
+
+async function loadConfigs() {
+  try {
+    const res = await fetch("/api/configs");
+    const data = await res.json();
+    currentConfig = data.active;
+    renderConfigGrid(data.configs);
+  } catch (err) {
+    console.error("Lỗi khi tải danh sách chế độ:", err);
+  }
+}
+
+function renderConfigGrid(configs) {
+  const container = document.getElementById("config-grid");
+  container.innerHTML = "";
+
+  configs.forEach(cfg => {
+    const card = document.createElement("div");
+    card.className = `config-card ${cfg.is_active ? 'active' : ''}`;
+    card.id = `cfg-card-${cfg.id}`;
+
+    card.innerHTML = `
+      <div>
+        <div class="config-card-header">
+          <div class="config-card-title">${cfg.name}</div>
+          <div class="config-tag">${cfg.tag}</div>
+        </div>
+        <div class="config-card-desc">${cfg.desc}</div>
+      </div>
+      <div class="config-card-footer">
+        <span class="config-feature-tag" style="color:${cfg.color}">
+          <span style="font-size:10px">●</span> ${cfg.feature}
+        </span>
+      </div>
+    `;
+
+    card.addEventListener("click", () => selectConfig(cfg.id));
+    container.appendChild(card);
+  });
+}
+
+async function selectConfig(cfgId) {
+  if (cfgId === currentConfig) return;
+
+  document.querySelectorAll(".config-card").forEach(c => c.classList.remove("active"));
+  const targetCard = document.getElementById(`cfg-card-${cfgId}`);
+  if (targetCard) targetCard.classList.add("active");
+
+  try {
+    const res = await fetch(`/api/switch/${cfgId}`, { method: "POST" });
+    const data = await res.json();
+    currentConfig = data.active;
+    showToast(`Đã chuyển sang ${data.name}`);
+  } catch (err) {
+    showToast("Không thể chuyển đổi chế độ", true);
+  }
+}
+
+function setupUploadEvents() {
+  const dropArea = document.getElementById("drop-area");
+  const fileInput = document.getElementById("file-input");
+
+  ['dragenter', 'dragover'].forEach(eventName => {
+    dropArea.addEventListener(eventName, e => {
+      e.preventDefault();
+      dropArea.classList.add('drag-over');
+    }, false);
+  });
+
+  ['dragleave', 'drop'].forEach(eventName => {
+    dropArea.addEventListener(eventName, e => {
+      e.preventDefault();
+      dropArea.classList.remove('drag-over');
+    }, false);
+  });
+
+  dropArea.addEventListener('drop', e => {
+    const files = e.dataTransfer.files;
+    if (files.length) handleFile(files[0]);
+  });
+
+  fileInput.addEventListener('change', e => {
+    if (e.target.files.length) handleFile(e.target.files[0]);
+  });
+}
+
+async function handleFile(file) {
+  const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/bmp', 'image/tiff'];
+  if (!validTypes.includes(file.type)) {
+    showToast("Vui lòng chọn file ảnh hợp lệ (PNG, JPEG, WEBP, BMP)", true);
+    return;
+  }
+
+  showLoading(true);
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const res = await fetch('/api/enhance', {
+      method: 'POST',
+      body: formData
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || "Xử lý thất bại");
+    }
+
+    const data = await res.json();
+    showLoading(false);
+    displayResults(data, file.name);
+  } catch (err) {
+    showLoading(false);
+    showToast(err.message, true);
+  }
+}
+
+function displayResults(data, filename) {
+  currentOutputDataUrl = data.output_image;
+  currentOutputFilename = filename.replace(/\.[^.]+$/, '') + "_enhanced.png";
+
+  document.getElementById("img-input").src = data.input_image;
+  document.getElementById("img-output").src = data.output_image;
+  setSlider(50);
+
+  document.getElementById("btn-download").onclick = () => {
+    const link = document.createElement("a");
+    link.href = currentOutputDataUrl;
+    link.download = currentOutputFilename;
+    link.click();
+  };
+
+  const t = data.timing;
+  const q = data.input_quality;
+  const e = data.enhancement;
+  const cfg = data.config;
+
+  // Key stats
+  document.getElementById("m-time").textContent = `${t.inference_ms} ms`;
+  document.getElementById("m-device").textContent = `Thiết bị: ${t.device}`;
+  document.getElementById("m-brightness").textContent = `${e.after_mean_lum}%`;
+  document.getElementById("m-brightness-before").textContent = `Trước: ${e.before_mean_lum}%`;
+  document.getElementById("m-gain").textContent = `+${e.brightness_gain_pct}%`;
+  document.getElementById("m-gain-sub").textContent = `+${e.brightness_gain}% độ sáng`;
+  document.getElementById("m-dark-reduction").textContent = `−${e.dark_reduction_pct}%`;
+  document.getElementById("m-dark-sub").textContent = `${e.dark_before_pct}% → ${e.dark_after_pct}%`;
+
+  // Details - Input Image
+  document.getElementById("d-res").textContent = data.image_size;
+  document.getElementById("d-mp").textContent = `${data.megapixels} MP`;
+  document.getElementById("d-dark-level").textContent = q.darkness_level;
+  document.getElementById("d-lum-mean").textContent = `${q.mean_luminance}%`;
+  document.getElementById("d-noise").textContent = q.noise_estimate.toFixed(4);
+
+  // Details - Initial Luminance Distribution
+  document.getElementById("d-dark-lum").textContent = `${q.dark_lum_val}%`;
+  document.getElementById("d-dark-area").textContent = `${q.dark_area_pct}% diện tích ảnh`;
+  document.getElementById("d-low-lum").textContent = q.low_lum_val !== null ? `${q.low_lum_val}%` : "—";
+  document.getElementById("d-min-max-lum").textContent = `${q.min_luminance}% / ${q.max_luminance}%`;
+  document.getElementById("d-contrast-iqr").textContent = q.contrast_iqr.toFixed(4);
+
+  // Details - Performance & Recovery
+  document.getElementById("d-contrast-comp").textContent = `${e.contrast_before}% → ${e.contrast_after}%`;
+  document.getElementById("d-rgb-shift").textContent = `${e.r_shift > 0 ? '+' : ''}${e.r_shift}% / ${e.g_shift > 0 ? '+' : ''}${e.g_shift}% / ${e.b_shift > 0 ? '+' : ''}${e.b_shift}%`;
+
+  const pxs = t.pixels_per_s || (t.throughput_mpx_s ? t.throughput_mpx_s * 1e6 : 0);
+  const mpxs = t.throughput_mpx_s || (pxs / 1e6);
+  let tpText = "—";
+  if (pxs > 0) {
+    if (mpxs >= 0.1) {
+      tpText = `${mpxs.toFixed(2)} MP/s (${Math.round(pxs).toLocaleString()} px/s)`;
+    } else {
+      tpText = `${Math.round(pxs).toLocaleString()} px/s (${mpxs.toFixed(4)} MP/s)`;
+    }
+  }
+  document.getElementById("d-throughput").textContent = tpText;
+  document.getElementById("d-active-cfg").textContent = cfg.name;
+
+  const resultsSection = document.getElementById("results-section");
+  resultsSection.style.display = "block";
+  resultsSection.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function setupComparisonSlider() {
+  const viewer = document.getElementById("viewer-box");
+
+  const updatePosition = clientX => {
+    if (!isDraggingSlider) return;
+    const rect = viewer.getBoundingClientRect();
+    const pos = Math.min(100, Math.max(0, ((clientX - rect.left) / rect.width) * 100));
+    setSlider(pos);
+  };
+
+  viewer.addEventListener('mousedown', e => { isDraggingSlider = true; updatePosition(e.clientX); });
+  viewer.addEventListener('touchstart', e => { isDraggingSlider = true; updatePosition(e.touches[0].clientX); }, { passive: true });
+
+  window.addEventListener('mousemove', e => updatePosition(e.clientX));
+  window.addEventListener('touchmove', e => { if (e.touches.length) updatePosition(e.touches[0].clientX); }, { passive: true });
+
+  window.addEventListener('mouseup', () => { isDraggingSlider = false; });
+  window.addEventListener('touchend', () => { isDraggingSlider = false; });
+}
+
+function setSlider(pct) {
+  document.getElementById("img-output").style.clipPath = `inset(0 ${100 - pct}% 0 0)`;
+  document.getElementById("slider-bar").style.left = `${pct}%`;
+}
+
+function showLoading(show) {
+  document.getElementById("loading-overlay").classList.toggle("show", show);
+}
+
+function showToast(msg, isError = false) {
+  const toast = document.getElementById("toast");
+  toast.textContent = msg;
+  toast.style.borderColor = isError ? "var(--accent-amber)" : "var(--primary)";
+  toast.classList.add("visible");
+  setTimeout(() => toast.classList.remove("visible"), 3200);
+}
+
+init();
+</script>
+</body>
+</html>
